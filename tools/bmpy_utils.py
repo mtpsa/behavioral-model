@@ -56,7 +56,7 @@ def check_JSON_md5(client, json_src, out=sys.stdout):
         my_print("{:<15}: {}\n".format("CLI input md5", md5sum_str))
         my_print("**********\n")
 
-def get_json_config(standard_client=None, json_path=None, out=sys.stdout):
+def get_json_config(standard_client=None, json_path=None, ctx_id=0, out=sys.stdout):
     def my_print(s):
         out.write(s)
 
@@ -69,7 +69,7 @@ def get_json_config(standard_client=None, json_path=None, out=sys.stdout):
         assert(standard_client is not None)
         try:
             my_print("Obtaining JSON from switch...\n")
-            json_cfg = standard_client.bm_get_config()
+            json_cfg = standard_client.bm_get_config(ctx_id)
             my_print("Done\n")
         except:
             my_print("Error when requesting JSON config from switch\n")

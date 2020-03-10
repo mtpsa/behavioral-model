@@ -116,7 +116,6 @@ PHV::push_back_header(const std::string &header_name,
 
   for (int i = 0; i < header_type.get_num_fields(); i++) {
     const std::string name = header_name + "." + header_type.get_field_name(i);
-    // std::cout << header_index << " " << i << " " << name << std::endl;
     fields_map.emplace(name, get_field(header_index, i));
   }
 
@@ -186,7 +185,6 @@ PHV::add_field_alias(const std::string &from, const std::string &to) {
   auto &ref = get_field(to);
   auto r = fields_map.emplace(from, ref);
   if (!r.second) r.first->second = ref;
-  // fields_map.emplace(from, ref);
 }
 
 const std::string

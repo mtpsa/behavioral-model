@@ -15,18 +15,17 @@ using ::stdcxx::shared_ptr;
 
 namespace bm_runtime {
 
-extern TMultiplexedProcessor *processor_;
+  extern TMultiplexedProcessor *processor_;
 
-template <typename Iface, typename Processor>
-int add_service(const std::string &service_name,
-                shared_ptr<Iface> handler) {
-  processor_->registerProcessor(service_name,
-				shared_ptr<TProcessor>(new Processor(handler)));
-  return 0;
-}
+  template <typename Iface, typename Processor>
+  int add_service(const std::string &service_name, shared_ptr<Iface> handler)
+  {
+    processor_->registerProcessor(service_name, shared_ptr<TProcessor>(new Processor(handler)));
+    return 0;
+  }
 
-int start_server(bm::SwitchWContexts *sw, int port);
+  int start_server(bm::SwitchWContexts *sw, int port);
 
-}
+} // namespace bm_runtime
 
 #endif  // _BM_RUNTIME_BM_RUNTIME_H_

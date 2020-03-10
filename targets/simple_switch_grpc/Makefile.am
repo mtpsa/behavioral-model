@@ -54,6 +54,7 @@ endif
 
 libsimple_switch_grpc_la_LIBADD += \
 -lpifeproto -lpigrpcserver -lpi -lpip4info \
+-lpiprotogrpc -lpiprotobuf \
 $(GRPC_LIBS) $(PROTOBUF_LIBS)
 
 # dataplane_interface.proto

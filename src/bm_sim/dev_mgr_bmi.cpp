@@ -43,16 +43,13 @@ namespace bm {
 
 class BmiDevMgrImp : public DevMgrIface {
  public:
-  BmiDevMgrImp(device_id_t device_id,
-               int max_port_count,
-               std::shared_ptr<TransportIface> notifications_transport) {
+
+  BmiDevMgrImp(device_id_t device_id, int max_port_count, std::shared_ptr<TransportIface> notifications_transport) {
     if (bmi_port_create_mgr(&port_mgr, max_port_count)) {
       Logger::get()->critical("Could not initialize BMI port manager");
       std::exit(1);
     }
-
-    p_monitor = PortMonitorIface::make_active(device_id,
-                                              notifications_transport);
+    p_monitor = PortMonitorIface::make_active(device_id, notifications_transport);
   }
 
  private:
@@ -60,16 +57,20 @@ class BmiDevMgrImp : public DevMgrIface {
     bmi_port_destroy_mgr(port_mgr);
   }
 
-  ReturnCode port_add_(const std::string &iface_name, port_t port_num,
-                       const PortExtras &port_extras) override {
+  ReturnCode port_add_(const std::string &iface_name, port_t port_num, const PortExtras &port_extras) override {
+    const char *in_pcap = NULL;
+    const char *out_pcap = NULL;
+
     auto it_in_pcap = port_extras.find(kPortExtraInPcap);
     auto it_out_pcap = port_extras.find(kPortExtraOutPcap);
-    const char *in_pcap = (it_in_pcap == port_extras.end()) ?
-        NULL : it_in_pcap->second.c_str();
-    const char *out_pcap = (it_out_pcap == port_extras.end()) ?
-        NULL : it_out_pcap->second.c_str();
-    if (bmi_port_interface_add(port_mgr, iface_name.c_str(), port_num, in_pcap,
-                               out_pcap))
+
+    if (it_in_pcap == port_extras.end())
+      in_pcap = it_in_pcap->second.c_str();
+
+    if (it_out_pcap == port_extras.end())
+      out_pcap = it_out_pcap->second.c_str();
+
+    if (bmi_port_interface_add(port_mgr, iface_name.c_str(), port_num, in_pcap, out_pcap))
       return ReturnCode::ERROR;
 
     PortInfo p_info(port_num, iface_name, port_extras);
@@ -100,8 +101,7 @@ class BmiDevMgrImp : public DevMgrIface {
       Logger::get()->critical("Could not start BMI port manager");
   }
 
-  ReturnCode set_packet_handler_(const PacketHandler &handler, void *cookie)
-      override {
+  ReturnCode set_packet_handler_(const PacketHandler &handler, void *cookie) override {
     using function_t = void(int, const char *, int, void *);
     function_t * const*ptr_fun = handler.target<function_t *>();
     assert(ptr_fun);
@@ -143,8 +143,7 @@ class BmiDevMgrImp : public DevMgrIface {
   PortStats clear_port_stats_(port_t port) override {
     bmi_port_stats_t port_stats;
     bmi_port_clear_stats(port_mgr, port, &port_stats);
-    return {port_stats.in_packets, port_stats.in_octets,
-          port_stats.out_packets, port_stats.out_octets};
+    return {port_stats.in_packets, port_stats.in_octets, port_stats.out_packets, port_stats.out_octets};
   }
 
  private:
@@ -162,8 +161,7 @@ DevMgr::set_dev_mgr_bmi(
     int max_port_count,
     std::shared_ptr<TransportIface> notifications_transport) {
   assert(!pimp);
-  pimp = std::unique_ptr<DevMgrIface>(
-      new BmiDevMgrImp(device_id, max_port_count, notifications_transport));
+  pimp = std::unique_ptr<DevMgrIface>(new BmiDevMgrImp(device_id, max_port_count, notifications_transport));
 }
 
 }  // namespace bm

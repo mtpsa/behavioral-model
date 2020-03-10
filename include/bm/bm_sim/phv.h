@@ -235,6 +235,14 @@ class PHV {
     packet_id = {id1, id2};
   }
 
+  unsigned get_packet_permissions(void) const {
+    return packet_permissions;
+  }
+
+  void set_packet_permissions(const unsigned perm) {
+    packet_permissions = perm;
+  }
+
   // iterators
 
   //! Returns an iterator to the first header in the "name -> header reference"
@@ -329,6 +337,7 @@ class PHV {
   size_t capacity_unions{0};
   size_t capacity_union_stacks{0};
   Debugger::PacketId packet_id;
+  unsigned packet_permissions{0};
 };
 
 class PHVFactory {

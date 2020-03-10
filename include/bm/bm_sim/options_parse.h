@@ -34,6 +34,29 @@
 
 namespace bm {
 
+class UsersList {
+ public:
+  using iterator = std::map<uint32_t, std::string>::iterator;
+  using const_iterator = std::map<uint32_t, std::string>::const_iterator;
+
+ public:
+  void add(uint32_t user_id, const std::string &config) {
+    users[user_id] = config;
+  }
+  bool empty() { return users.empty(); }
+  void clear() { users.clear(); }
+  // iterators
+  iterator begin() { return users.begin(); }
+  const_iterator begin() const { return users.begin(); }
+  iterator end() { return users.end(); }
+  const_iterator end() const { return users.end(); }
+  iterator find(uint32_t user_id) { return users.find(user_id); }
+  const_iterator find(uint32_t user_id) const { return users.find(user_id); }
+
+ private:
+  std::map<uint32_t, std::string> users{};
+};
+
 class InterfaceList {
  public:
   using iterator = std::map<uint32_t, std::string>::iterator;
@@ -72,6 +95,7 @@ class OptionsParser {
   std::string config_file_path{};
   bool no_p4{false};
   InterfaceList ifaces{};
+  UsersList users{};
   bool pcap{false};
   std::string pcap_dir{};
   int thrift_port{0};

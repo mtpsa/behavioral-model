@@ -41,6 +41,39 @@ namespace fs = boost::filesystem;
 
 namespace bm {
 
+struct user {
+  user(const std::string &config, uint32_t user_id)
+    : config(config), user_id(user_id) { }
+
+  std::string config{};
+  uint32_t user_id{};
+};
+
+void validate(boost::any& v, const std::vector<std::string> &values, user*, int) {
+  namespace po = boost::program_options;
+  po::validators::check_first_occurrence(v);
+  const std::string &s = po::validators::get_single_string(values);
+
+  std::istringstream stream(s);
+  std::string tok;
+  std::getline(stream, tok, '@');
+  uint32_t user_id;
+  try {
+    user_id = std::stoi(tok, nullptr);
+  }
+  catch (...) {
+    throw po::validation_error(po::validation_error::invalid_option_value, "user");
+  }
+  if (tok == s) {
+    throw po::validation_error(po::validation_error::invalid_option_value, "user");
+  }
+  if (user_id <= 0) {
+    throw po::validation_error(po::validation_error::invalid_option_value, "user");
+  }
+  std::getline(stream, tok);
+  v = boost::any(user(tok, user_id));
+}
+
 struct interface {
   interface(const std::string &name, uint32_t port)
     : name(name), port(port) { }
@@ -49,10 +82,7 @@ struct interface {
   uint32_t port{};
 };
 
-void validate(boost::any& v,  // NOLINT(runtime/references)
-              const std::vector<std::string> &values,
-              interface* /* target_type */,
-              int) {
+void validate(boost::any& v, const std::vector<std::string> &values, interface*, int) {
   namespace po = boost::program_options;
 
   // Make sure no previous assignment to 'v' was made.
@@ -70,12 +100,10 @@ void validate(boost::any& v,  // NOLINT(runtime/references)
     port = std::stoi(tok, nullptr);
   }
   catch (...) {
-    throw po::validation_error(po::validation_error::invalid_option_value,
-                               "interface");
+    throw po::validation_error(po::validation_error::invalid_option_value, "interface");
   }
   if (tok == s) {
-    throw po::validation_error(po::validation_error::invalid_option_value,
-                               "interface");
+    throw po::validation_error(po::validation_error::invalid_option_value, "interface");
   }
   std::getline(stream, tok);
   v = boost::any(interface(tok, port));
@@ -94,6 +122,9 @@ OptionsParser::parse(int argc, char *argv[], TargetParserIface *tp,
 
   description.add_options()
       ("help,h", "Display this help message")
+      ("user,u", po::value<std::vector<user> >()->composing(),
+       "<user-id>@<config>: (MTPSA) Load <user-id> context from "
+       "<config> at startup. Can appear multiple times")
       ("interface,i", po::value<std::vector<interface> >()->composing(),
        "<port-num>@<interface-name>: "
        "Attach network interface <interface-name> as port <port-num> at "
@@ -337,6 +368,12 @@ OptionsParser::parse(int argc, char *argv[], TargetParserIface *tp,
                 << "packet on ingress and egress, but you set a log level "
                 << "which excludes 'info' messages. Therefore, "
                 << "'--dump-packet-data' will be ignored.\n";
+    }
+  }
+
+  if (vm.count("user")) {
+    for (const auto &u : vm["user"].as<std::vector<user> >()) {
+      users.add(u.user_id, u.config);
     }
   }
 

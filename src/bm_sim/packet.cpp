@@ -130,6 +130,24 @@ Packet::change_context(cxt_id_t new_cxt) {
   cxt_id = new_cxt;
 }
 
+void
+Packet::change_to_user_context(cxt_id_t new_cxt) {
+  if (cxt_id == new_cxt) return;
+  assert(phv);
+  phv_admin = std::move(phv);
+  phv = phv_source->get(new_cxt);
+  cxt_id = new_cxt;
+}
+
+void
+Packet::restore_admin_context() {
+  phv->reset();
+  phv->reset_header_stacks();
+  phv_source->release(cxt_id, std::move(phv));
+  phv = std::move(phv_admin);
+  cxt_id = 0;
+}
+
 /* It is important to understand that with NRVO, the following are "equivalent"
    and both generate only a call to the constructor:
 

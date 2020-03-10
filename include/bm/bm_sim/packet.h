@@ -282,6 +282,8 @@ class Packet final {
   //! otherwise, release the old PHV and replace it with a new one, compatible
   //! with the new context
   void change_context(cxt_id_t new_cxt);
+  void change_to_user_context(cxt_id_t new_cxt);
+  void restore_admin_context();
 
   //! Returns the id of the Context this packet currently belongs to
   cxt_id_t get_context() const { return cxt_id; }
@@ -370,6 +372,7 @@ class Packet final {
   uint64_t ingress_ts_ms{};
 
   std::unique_ptr<PHV> phv;
+  std::unique_ptr<PHV> phv_admin;
 
   PHVSourceIface *phv_source{nullptr};
 

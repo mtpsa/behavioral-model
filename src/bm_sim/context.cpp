@@ -775,7 +775,9 @@ Context::init_objects(std::istream *is,
   int status = p4objects_rt->init_objects(is, lookup_factory, device_id, cxt_id,
                                           notifications_transport,
                                           required_fields, arith_objects);
-  if (status) return status;
+  if (status)
+    return status;
+
   if (force_arith)
     get_phv_factory().enable_all_arith();
   return 0;
@@ -788,11 +790,34 @@ Context::load_new_config(
     const std::set<header_field_pair> &required_fields,
     const ForceArith &arith_objects) {
   boost::unique_lock<boost::shared_mutex> lock(request_mutex);
+
   // check that there is no ongoing config swap
-  if (p4objects != p4objects_rt) return ErrorCode::ONGOING_SWAP;
+  if (p4objects != p4objects_rt)
+    return ErrorCode::ONGOING_SWAP;
+
   p4objects_rt = std::make_shared<P4Objects>(std::cout, true);
   init_objects(is, lookup_factory, required_fields, arith_objects);
   send_swap_status_notification(SwapStatus::NEW_CONFIG_LOADED);
+
+  return ErrorCode::SUCCESS;
+}
+
+Context::ErrorCode
+Context::load_user_config(
+    std::istream *is,
+    LookupStructureFactory *lookup_factory,
+    const std::set<header_field_pair> &required_user_fields,
+    const ForceArith &arith_objects) {
+  boost::unique_lock<boost::shared_mutex> lock(request_mutex);
+
+  // check that there is no ongoing config swap
+  if (p4objects != p4objects_rt)
+    return ErrorCode::ONGOING_SWAP;
+
+  p4objects_rt = std::make_shared<P4Objects>(std::cout, true);
+  init_objects(is, lookup_factory, required_user_fields, arith_objects);
+  send_swap_status_notification(SwapStatus::NEW_CONFIG_LOADED);
+
   return ErrorCode::SUCCESS;
 }
 

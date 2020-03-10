@@ -88,23 +88,20 @@ int serve(int port) {
 
   processor->registerProcessor(
       "standard",
-      shared_ptr<TProcessor>(new StandardProcessor(
-          standard::get_handler(switch_)))
+      shared_ptr<TProcessor>(new StandardProcessor(standard::get_handler(switch_)))
   );
 
   if(switch_has_component<bm::McSimplePre>()) {
     processor->registerProcessor(
         "simple_pre",
-        shared_ptr<TProcessor>(new SimplePreProcessor(
-            simple_pre::get_handler(switch_)))
+        shared_ptr<TProcessor>(new SimplePreProcessor(simple_pre::get_handler(switch_)))
     );
   }
 
   if(switch_has_component<bm::McSimplePreLAG>()) {
     processor->registerProcessor(
         "simple_pre_lag",
-        shared_ptr<TProcessor>(new SimplePreLAGProcessor(
-            simple_pre_lag::get_handler(switch_)))
+        shared_ptr<TProcessor>(new SimplePreLAGProcessor(simple_pre_lag::get_handler(switch_)))
     );
   }
 
@@ -140,7 +137,8 @@ int start_server(bm::SwitchWContexts *sw, int port) {
   bm::Logger::get()->info("Starting Thrift server on port {}", port);
   std::thread server_thread(serve, port);
   std::unique_lock<std::mutex> lock(m_ready);
-  while(!ready) cv_ready.wait(lock);
+  while(!ready)
+    cv_ready.wait(lock);
   server_thread.detach();
   bm::Logger::get()->info("Thrift server was started");
   return 0;

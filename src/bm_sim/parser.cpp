@@ -1136,15 +1136,21 @@ Parser::parse(Packet *pkt) const {
   // this is temporary while we experiment with the debugger
   DEBUGGER_NOTIFY_CTR(
       Debugger::PacketId::make(pkt->get_packet_id(), pkt->get_copy_id()),
-      DBG_CTR_PARSER | get_id());
+      DBG_CTR_PARSER | get_id()
+  );
+
   BMLOG_DEBUG_PKT(*pkt, "Parser '{}': start", get_name());
+
   // at the beginning of parsing, we "reset" the error code to
   // Core::NoError and the checksum_error to false
   pkt->set_error_code(no_error);
   pkt->set_checksum_error(false);
   const char *data = pkt->data();
-  if (!init_state) return;
+
+  if (!init_state)
+    return;
   const ParseState *next_state = init_state;
+
   size_t bytes_parsed = 0;
   while (next_state) {
     BMLOG_DEBUG_PKT(*pkt, "Parser '{}' entering state '{}'",

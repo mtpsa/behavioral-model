@@ -44,8 +44,7 @@ constexpr char DevMgrIface::kPortExtraOutPcap[];
 // Implementation which uses Pcap files to read/write packets
 class FilesDevMgrImp : public DevMgrIface {
  public:
-  FilesDevMgrImp(bool respectTiming, unsigned wait_time_in_seconds)
-      : reader(respectTiming, wait_time_in_seconds) {
+  FilesDevMgrImp(bool respectTiming, unsigned wait_time_in_seconds) : reader(respectTiming, wait_time_in_seconds) {
     p_monitor = PortMonitorIface::make_dummy();
   }
 

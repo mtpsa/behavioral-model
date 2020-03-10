@@ -714,7 +714,10 @@ service Standard {
 
   void bm_reset_state()
 
-  string bm_get_config()
+  string bm_get_config(
+    1:i32 cxt_id
+  ) throws (1:InvalidIdLookup ouch)
+
   string bm_get_config_md5()
 
   i32 bm_get_id_from_name(

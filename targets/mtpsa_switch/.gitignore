@@ -1,0 +1,5 @@
+/build
+/mtpsa_switch
+/*.pcap
+mtpswitch_runtime
+mtpsa_switch_CLI

@@ -156,6 +156,9 @@ class SwitchWContexts : public DevMgr, public RuntimeInterface {
   void add_required_field(const std::string &header_name,
                           const std::string &field_name);
 
+  void add_required_user_field(const std::string &header_name,
+                               const std::string &field_name);
+
   //! Checks that the given field exists for context \p cxt_id, i.e. checks that
   //! the field was defined in the input JSON used to configure that context.
   bool field_exists(cxt_id_t cxt_id, const std::string &header_name,
@@ -195,7 +198,8 @@ class SwitchWContexts : public DevMgr, public RuntimeInterface {
   size_t get_nb_cxts() { return nb_cxts; }
 
   int init_objects(const std::string &json_path, device_id_t device_id = 0,
-                   std::shared_ptr<TransportIface> notif_transport = nullptr);
+                   std::shared_ptr<TransportIface> notif_transport = nullptr,
+                   size_t ctx_id = 0);
 
   int init_objects_empty(device_id_t dev_id,
                          std::shared_ptr<TransportIface> transport);
@@ -804,9 +808,12 @@ class SwitchWContexts : public DevMgr, public RuntimeInterface {
   load_new_config(const std::string &new_config) override;
 
   RuntimeInterface::ErrorCode
+  load_user_config(const std::string &new_config, size_t user_id);
+
+  RuntimeInterface::ErrorCode
   swap_configs() override;
 
-  std::string get_config() const override;
+  std::string get_config(cxt_id_t cxt_id=0) const override;
   std::string get_config_md5() const override;
 
   P4Objects::IdLookupErrorCode p4objects_id_from_name(
@@ -832,6 +839,10 @@ class SwitchWContexts : public DevMgr, public RuntimeInterface {
 
   const std::set<header_field_pair> &get_required_fields() const {
     return required_fields;
+  }
+
+  const std::set<header_field_pair> &get_required_user_fields() const {
+    return required_user_fields;
   }
 
   //! Add a component to this switch. Each switch maintains a map `T` ->
@@ -870,7 +881,8 @@ class SwitchWContexts : public DevMgr, public RuntimeInterface {
 
  private:
   int init_objects(std::istream *is, device_id_t dev_id,
-                   std::shared_ptr<TransportIface> transport);
+                   std::shared_ptr<TransportIface> transport,
+                   size_t ctx_id=0);
 
   void reset_target_state();
 
@@ -925,6 +937,7 @@ class SwitchWContexts : public DevMgr, public RuntimeInterface {
   std::unordered_map<std::type_index, std::shared_ptr<void> > components{};
 
   std::set<header_field_pair> required_fields{};
+  std::set<header_field_pair> required_user_fields{};
   ForceArith arith_objects{};
 
   int thrift_port{};
@@ -939,7 +952,14 @@ class SwitchWContexts : public DevMgr, public RuntimeInterface {
   mutable boost::shared_mutex process_packet_mutex{};
 
   std::string current_config{"{}"};  // empty JSON config
+  std::string current_user_config[17]{
+    "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}",
+    "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}",
+  };
+
   bool config_loaded{false};
+  bool user_config_loaded[17]{false};
+
   mutable std::condition_variable config_loaded_cv{};
   mutable std::mutex config_mutex{};
 
@@ -953,7 +973,7 @@ class SwitchWContexts : public DevMgr, public RuntimeInterface {
 class Switch : public SwitchWContexts {
  public:
   //! See SwitchWContexts::SwitchWContexts()
-  explicit Switch(bool enable_swap = false);
+  explicit Switch(bool enable_swap = false, size_t nb_user_threads = 1u);
 
   // to avoid C++ name hiding
   using SwitchWContexts::field_exists;
@@ -1058,6 +1078,11 @@ class Switch : public SwitchWContexts {
   template<typename T>
   bool add_component(std::shared_ptr<T> ptr) {
     return add_cxt_component<T>(0, std::move(ptr));
+  }
+
+  template<typename T>
+  bool add_component(std::shared_ptr<T> ptr, size_t user_id) {
+    return add_cxt_component<T>(user_id, std::move(ptr));
   }
 
   //! Retrieve the shared pointer to an object of type `T` previously added to

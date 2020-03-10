@@ -54,8 +54,11 @@ packet_handler(int port_num, const char *buffer, int len, void *cookie) {
 // TODO(antonin): maybe a factory method would be more appropriate for Switch
 SwitchWContexts::SwitchWContexts(size_t nb_cxts, bool enable_swap)
   : DevMgr(),
-    nb_cxts(nb_cxts), contexts(nb_cxts), enable_swap(enable_swap),
-    phv_source(PHVSourceIface::make_phv_source(nb_cxts)) {
+    nb_cxts(nb_cxts),
+    contexts(nb_cxts),
+    enable_swap(enable_swap),
+    phv_source(PHVSourceIface::make_phv_source(nb_cxts))
+{
   for (size_t i = 0; i < nb_cxts; i++) {
     contexts.at(i).set_cxt_id(i);
   }
@@ -129,6 +132,12 @@ SwitchWContexts::add_required_field(const std::string &header_name,
 }
 
 void
+SwitchWContexts::add_required_user_field(const std::string &header_name,
+                                         const std::string &field_name) {
+  required_user_fields.insert(std::make_pair(header_name, field_name));
+}
+
+void
 SwitchWContexts::force_arith_field(const std::string &header_name,
                                    const std::string &field_name) {
   arith_objects.add_field(header_name, field_name);
@@ -148,10 +157,11 @@ SwitchWContexts::set_group_selector(
 }
 
 int
-SwitchWContexts::init_objects(std::istream *is, device_id_t dev_id,
-                              std::shared_ptr<TransportIface> transport) {
-  int status = 0;
-
+SwitchWContexts::init_objects(std::istream *is,
+                              device_id_t dev_id,
+                              std::shared_ptr<TransportIface> transport,
+                              size_t ctx_id)
+{
   device_id = dev_id;
 
   if (!transport) {
@@ -161,40 +171,53 @@ SwitchWContexts::init_objects(std::istream *is, device_id_t dev_id,
     notifications_transport = std::move(transport);
   }
 
-  for (cxt_id_t cxt_id = 0; cxt_id < nb_cxts; cxt_id++) {
-    auto &cxt = contexts.at(cxt_id);
-    cxt.set_device_id(device_id);
-    cxt.set_notifications_transport(notifications_transport);
-    if (is != nullptr) {
-      status = cxt.init_objects(is, get_lookup_factory(),
-                                required_fields, arith_objects);
-      is->clear();
-      is->seekg(0, std::ios::beg);
-      if (status != 0) return status;
-    }
-    phv_source->set_phv_factory(cxt_id, &cxt.get_phv_factory());
+  auto &cxt = contexts.at(ctx_id);
+  cxt.set_device_id(device_id);
+  cxt.set_notifications_transport(notifications_transport);
+
+  if (is != nullptr) {
+    int status;
+
+    if (ctx_id == 0)
+      status = cxt.init_objects(is, get_lookup_factory(), required_fields, arith_objects);
+    else
+      status = cxt.init_objects(is, get_lookup_factory(), required_user_fields, arith_objects);
+
+    is->clear();
+    is->seekg(0, std::ios::beg);
+    if (status != 0)
+      return status;
   }
+  phv_source->set_phv_factory(ctx_id, &cxt.get_phv_factory());
 
   return 0;
 }
 
 int
-SwitchWContexts::init_objects(const std::string &json_path, device_id_t dev_id,
-                              std::shared_ptr<TransportIface> transport) {
+SwitchWContexts::init_objects(const std::string &json_path,
+                              device_id_t dev_id,
+                              std::shared_ptr<TransportIface> transport,
+                              size_t ctx_id) {
   std::ifstream fs(json_path, std::ios::in);
   if (!fs) {
     std::cout << "JSON input file " << json_path << " cannot be opened\n";
     return 1;
   }
 
-  int status = init_objects(&fs, dev_id, transport);
-  if (status != 0) return status;
+  int status = init_objects(&fs, dev_id, transport, ctx_id);
+  if (status != 0)
+    return status;
 
-  {
-    std::unique_lock<std::mutex> config_lock(config_mutex);
-    current_config = std::string((std::istreambuf_iterator<char>(fs)),
-                                 std::istreambuf_iterator<char>());
+  // SimpleSwitch and PSA use only one context (cxt_id=0).
+  // For MTPSA, on cxt_id=0 is loaded the superuser config,
+  // all other context IDs represent a user configuration.
+  std::unique_lock<std::mutex> config_lock(config_mutex);
+  if (ctx_id == 0) {
+    current_config = std::string((std::istreambuf_iterator<char>(fs)), std::istreambuf_iterator<char>());
     config_loaded = true;
+  } else {
+    current_user_config[ctx_id] = std::string((std::istreambuf_iterator<char>(fs)), std::istreambuf_iterator<char>());
+    user_config_loaded[ctx_id] = true;
   }
 
   return 0;
@@ -208,9 +231,12 @@ SwitchWContexts::init_objects_empty(device_id_t dev_id,
 
 int
 SwitchWContexts::init_from_command_line_options(
-    int argc, char *argv[], TargetParserIface *tp,
+    int argc,
+    char *argv[],
+    TargetParserIface *tp,
     std::shared_ptr<TransportIface> my_transport,
-    std::unique_ptr<DevMgrIface> my_dev_mgr) {
+    std::unique_ptr<DevMgrIface> my_dev_mgr)
+{
   OptionsParser parser;
   parser.parse(argc, argv, tp);
   return init_from_options_parser(parser, my_transport, std::move(my_dev_mgr));
@@ -220,15 +246,15 @@ int
 SwitchWContexts::init_from_options_parser(
     const OptionsParser &parser,
     std::shared_ptr<TransportIface> my_transport,
-    std::unique_ptr<DevMgrIface> my_dev_mgr) {
+    std::unique_ptr<DevMgrIface> my_dev_mgr)
+{
   int status = 0;
 
   auto transport = my_transport;
   if (transport == nullptr) {
 #ifdef BM_NANOMSG_ON
     notifications_addr = parser.notifications_addr;
-    transport = std::shared_ptr<TransportIface>(
-        TransportIface::make_nanomsg(notifications_addr));
+    transport = std::shared_ptr<TransportIface>(TransportIface::make_nanomsg(notifications_addr));
 #else
     notifications_addr = "";
     transport = std::shared_ptr<TransportIface>(TransportIface::make_dummy());
@@ -260,7 +286,22 @@ SwitchWContexts::init_from_options_parser(
     status = init_objects_empty(parser.device_id, transport);
   else
     status = init_objects(parser.config_file_path, parser.device_id, transport);
-  if (status != 0) return status;
+
+  if (status != 0)
+    return status;
+
+  // SimpleSwitch and PSA use only one context (cxt_id=0).
+  // For MTPSA, on cxt_id=0 is loaded the superuser config,
+  // all other context IDs represent a user configuration.
+
+  for (const auto &usr : parser.users) {
+    auto user_id = usr.first;
+    auto config_path = usr.second;
+    std::cout << "Loading user " << user_id << " config from " << config_path << std::endl;
+    status = init_objects(config_path, parser.device_id, transport, user_id);
+    if (status != 0)
+      return status;
+  }
 
   if (my_dev_mgr != nullptr)
     set_dev_mgr(std::move(my_dev_mgr));
@@ -313,7 +354,8 @@ SwitchWContexts::init_from_options_parser(
 
   if (parser.state_file_path != "") {
     status = deserialize_from_file(parser.state_file_path);
-    if (status != 0) return status;
+    if (status != 0)
+      return status;
   }
 
   dump_packet_data = parser.dump_packet_data;
@@ -338,18 +380,52 @@ SwitchWContexts::init_from_options_parser(
 // basis, but this could easily be changed
 RuntimeInterface::ErrorCode
 SwitchWContexts::load_new_config(const std::string &new_config) {
-  if (!enable_swap) return ErrorCode::CONFIG_SWAP_DISABLED;
+  if (!enable_swap)
+    return ErrorCode::CONFIG_SWAP_DISABLED;
+
   std::istringstream ss(new_config);
-  for (auto &cxt : contexts) {
-    ErrorCode rc = cxt.load_new_config(&ss, get_lookup_factory(),
-                                       required_fields, arith_objects);
-    if (rc != ErrorCode::SUCCESS) return rc;
-    ss.clear();
-    ss.seekg(0, std::ios::beg);
-  }
+
+  // Assume that SimpleSwitch, PSA, etc. always use a single context,
+  // and MTPSA reserves the first context for administration.
+  auto &cxt = contexts.front();
+  ErrorCode rc = cxt.load_new_config(&ss, get_lookup_factory(), required_fields, arith_objects);
+  if (rc != ErrorCode::SUCCESS)
+    return rc;
+  ss.clear();
+  ss.seekg(0, std::ios::beg);
+
   {
     std::unique_lock<std::mutex> config_lock(config_mutex);
     current_config = new_config;
+  }
+  return ErrorCode::SUCCESS;
+}
+
+RuntimeInterface::ErrorCode
+SwitchWContexts::load_user_config(const std::string &new_config, size_t user_id) {
+  std::cout << "Open user " << user_id << " config from " << new_config.c_str() << std::endl;
+  std::ifstream fs(new_config, std::ios::in);
+  if (!fs) {
+    fprintf(stderr, "JSON input file %s cannot be opened\n", new_config.c_str());
+    return ErrorCode::NO_ONGOING_SWAP;
+  }
+
+  ErrorCode rc = contexts.at(user_id).load_user_config(
+    &fs,
+    get_lookup_factory(),
+    required_user_fields,
+    arith_objects
+  );
+  if (rc != ErrorCode::SUCCESS)
+    return rc;
+
+  {
+    std::unique_lock<std::mutex> config_lock(config_mutex);
+    current_user_config[user_id] = std::string(
+        (std::istreambuf_iterator<char>(fs)),
+        std::istreambuf_iterator<char>()
+    );
+    user_config_loaded[user_id] = true;
   }
   return ErrorCode::SUCCESS;
 }
@@ -482,9 +558,13 @@ SwitchWContexts::do_swap() {
 }
 
 std::string
-SwitchWContexts::get_config() const {
-  std::unique_lock<std::mutex> config_lock(config_mutex);
-  return current_config;
+SwitchWContexts::get_config(cxt_id_t cxt_id) const {
+  if (cxt_id == 0) {
+    std::unique_lock<std::mutex> config_lock(config_mutex);
+    return current_config;
+  } else {
+    return current_user_config[cxt_id];
+  }
 }
 
 std::string
@@ -565,9 +645,7 @@ SwitchWContexts::transport_send_probe(uint64_t x) const {
 }
 
 // Switch convenience class
-
-Switch::Switch(bool enable_swap)
-    : SwitchWContexts(1u, enable_swap) { }
+Switch::Switch(bool enable_swap, size_t nb_user_threads) : SwitchWContexts(nb_user_threads, enable_swap) { }
 
 std::unique_ptr<Packet>
 Switch::new_packet_ptr(port_t ingress_port,
