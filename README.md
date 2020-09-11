@@ -1,5 +1,55 @@
 # BEHAVIORAL MODEL (bmv2)
 
+This repository is a fork from https://github.com/p4lang/behavioral-model
+
+The modified source code files that implement support for MTPSA are listed below:
+
+```
+configure.ac                                           |   1 +
+include/bm/bm_runtime/bm_runtime.h                     |  19 ++-
+include/bm/bm_sim/context.h                            |   6 +
+include/bm/bm_sim/options_parse.h                      |  24 ++++
+include/bm/bm_sim/packet.h                             |   3 +
+include/bm/bm_sim/phv.h                                |   9 ++
+include/bm/bm_sim/runtime_interface.h                  |   2 +-
+include/bm/bm_sim/switch.h                             |  33 ++++-
+src/bm_runtime/Standard_server.cpp                     |   7 +-
+src/bm_runtime/server.cpp                              |  12 +-
+src/bm_sim/P4Objects.cpp                               |   4 +-
+src/bm_sim/context.cpp                                 |  29 +++-
+src/bm_sim/dev_mgr.cpp                                 |   3 +-
+src/bm_sim/dev_mgr_bmi.cpp                             |  38 +++---
+src/bm_sim/options_parse.cpp                           |  53 ++++++--
+src/bm_sim/packet.cpp                                  |  18 +++
+src/bm_sim/parser.cpp                                  |  10 +-
+src/bm_sim/phv.cpp                                     |   2 -
+src/bm_sim/switch.cpp                                  | 172 +++++++++++++++++-------
+targets/Makefile.am                                    |   2 +-
+targets/mtpsa_switch/.gitignore                        |   5 +
+targets/mtpsa_switch/CPPLINT.cfg                       |   2 +
+targets/mtpsa_switch/Makefile.am                       | 141 ++++++++++++++++++++
+targets/mtpsa_switch/externs/mtpsa_counter.cpp         |  40 ++++++
+targets/mtpsa_switch/externs/mtpsa_counter.h           |  50 +++++++
+targets/mtpsa_switch/externs/mtpsa_meter.cpp           |  76 +++++++++++
+targets/mtpsa_switch/externs/mtpsa_meter.h             |  46 +++++++
+targets/mtpsa_switch/main.cpp                          |  42 ++++++
+targets/mtpsa_switch/mtpsa_switch.cpp                  | 439 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+targets/mtpsa_switch/mtpsa_switch.h                    | 202 ++++++++++++++++++++++++++++
+targets/mtpsa_switch/mtpsa_switch_CLI.in               |   7 +
+targets/mtpsa_switch/mtpswitch_CLI                     |  26 ++++
+targets/mtpsa_switch/mtpswitch_CLI.py                  | 103 +++++++++++++++
+targets/mtpsa_switch/primitives.cpp                    | 377 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+targets/mtpsa_switch/runtime_CLI                       |   1 +
+targets/mtpsa_switch/thrift/mtpsa_switch.thrift        |  21 +++
+targets/mtpsa_switch/thrift/src/MtPsaSwitch_server.cpp |  90 +++++++++++++
+targets/simple_switch_grpc/Makefile.am                 |   1 +
+thrift_src/standard.thrift                             |   5 +-
+tools/bmpy_utils.py                                    |   4 +-
+tools/runtime_CLI.py                                   | 639 +++++++++++++++++++++++++++++++++++++++++++++++++++++++---------------------------------
+
+41 files changed, 2406 insertions(+), 358 deletions(-)
+```
+
 [![Build Status](https://travis-ci.org/p4lang/behavioral-model.svg?branch=master)](https://travis-ci.org/p4lang/behavioral-model)
 
 This is the second version of the reference P4 software switch, nicknamed bmv2
